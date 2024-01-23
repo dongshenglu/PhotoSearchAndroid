@@ -9,7 +9,7 @@ import com.demo.photosearchactivity.networking.WebClient
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
-private const val TAG = "PhotoUseCase"
+private const val TAG = "PhotoSearch-FetchPhotoUseCase"
 private const val PHOTO_PER_PAGE = 100
 
 /**
