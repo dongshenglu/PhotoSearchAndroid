@@ -87,7 +87,7 @@ import com.demo.photosearchactivity.networking.WebClient
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
-private const val TAG = "MainActivity"
+private const val TAG = "PhotoSearch-MainActivity"
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {

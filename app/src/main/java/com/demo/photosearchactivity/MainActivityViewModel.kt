@@ -38,7 +38,7 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
-private const val TAG = "MainActivityViewModel"
+private const val TAG = "PhotoSearch-MainActivityViewModel"
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel

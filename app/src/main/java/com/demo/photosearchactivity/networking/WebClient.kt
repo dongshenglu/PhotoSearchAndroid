@@ -1,15 +1,20 @@
 package com.demo.photosearchactivity.networking
 
 
+import android.util.Log
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
 import okhttp3.Cache
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.util.concurrent.TimeUnit
+
+private const val TAG = "photoSearch-WebClient"
 
 private const val BASE_URL = "https://api.flickr.com/services/rest/"
 private const val PHOTO_BASE_URL = "https://live.staticflickr.com"
@@ -24,6 +29,22 @@ object WebClient {
     private const val cacheSize = 10 * 1024 * 1024 // 10 MB
     private var cache: Cache? = null
 
+    class ResponseSourceInterceptor : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val request = chain.request()
+            val url = request.url
+            val response = chain.proceed(request)
+            val source = when {
+                response.cacheResponse != null -> "Cache"
+                response.networkResponse != null -> "Network"
+                else -> "Unknown"
+            }
+            Log.d(TAG, "Request URL: $url")
+            Log.d(TAG, "Response Source: $source")
+            return response
+        }
+    }
+
     fun init(cacheDirectory: File) {
         cache = Cache(cacheDirectory, cacheSize.toLong())
     }
@@ -37,6 +58,7 @@ object WebClient {
             )
             .readTimeout(READ_TIMEOUT, TimeUnit.SECONDS)    // For reading data from the server
             .writeTimeout(WRITE_TIMEOUT, TimeUnit.SECONDS)   // For writing data to the server
+            .addInterceptor(ResponseSourceInterceptor()) // Add the custom interceptor
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BASIC
             })
@@ -69,4 +91,5 @@ object WebClient {
     fun clearCache() {
         cache?.evictAll()
     }
+
 }

@@ -22,7 +22,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 
-private const val TAG = "photoMap-Repo"
+private const val TAG = "photoSearch-Repo"
 private const val DEFAULT_SIZE_SUFFIX: String = "b"
 private const val PHOTO_BASE_URL = "https://live.staticflickr.com"
 
@@ -53,7 +53,12 @@ class PhotosRepository(private val context: Context) {
      */
     suspend fun fetchLocation(photoId: String): LocationResponse? {
         // First check from memory cache.
-        getCachedLocation(photoId)?.let { return it }
+        getCachedLocation(photoId)?.let {
+            Log.d(TAG, "PhotoId: $photoId, location is from cache.")
+            return it
+        }
+
+        Log.d(TAG, "PhotoId: $photoId, location is from network.")
 
         // Update memory cache with network response.
         val location = WebClient.client.fetchLocation(photoId)?.photo?.location
@@ -74,7 +79,12 @@ class PhotosRepository(private val context: Context) {
                 "$PHOTO_BASE_URL/${photo.server}/${photo.id}_${photo.secret}_$DEFAULT_SIZE_SUFFIX.jpg"
 
             // Check cache first
-            getCachedImage(url)?.let { return@withContext it }
+            getCachedImage(url)?.let {
+                Log.d(TAG, "PhotoId: ${photo.id}, bitmap is from cache.")
+                return@withContext it
+            }
+
+            Log.d(TAG, "PhotoId: ${photo.id}, bitmap is from network.")
 
             // Fetch image using Retrofit
             val response = imageRetrofit.fetchImage(url)
