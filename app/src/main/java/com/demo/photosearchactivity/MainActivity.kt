@@ -85,7 +85,10 @@ import com.demo.photosearchactivity.model.PhotoData
 import com.demo.photosearchactivity.model.SearchParameters
 import com.demo.photosearchactivity.networking.WebClient
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.internal.wait
 
 private const val TAG = "PhotoSearch-MainActivity"
 
@@ -105,12 +108,16 @@ class MainActivity : ComponentActivity() {
                     PhotoGridScreen(navController)
                 }
                 composable(
-                    "photoDetails/{photoId}",
-                    arguments = listOf(navArgument("photoId") { type = NavType.StringType })
+                    "photoDetails/{photoId}/{label}", // Define both parameters in the route
+                    arguments = listOf(
+                        navArgument("photoId") { type = NavType.StringType },
+                        navArgument("label") { type = NavType.StringType }
+                    )
                 ) { backStackEntry ->
                     PhotoDetailsScreen(
                         navController,
-                        photoId = backStackEntry.arguments?.getString("photoId") ?: ""
+                        photoId = backStackEntry.arguments?.getString("photoId") ?: "",
+                        label = backStackEntry.arguments?.getString("label") ?: ""
                     )
                 }
             }
@@ -166,7 +173,17 @@ class MainActivity : ComponentActivity() {
                     // Handle the click event here
                     Log.d("PhotoDataGrid", "Clicked on item: ${photoData.id}")
                     viewModel.selectedPhoto = photoData
-                    navController.navigate("photoDetails/${photoData.id}")
+
+                    lifecycleScope.launch {
+
+                        // Get photo label with trained AI model.
+                        val label = photoData.bitmap.getImageLabel()
+
+                        // Ensure navigation is done on the main thread after label is obtained.
+                        withContext(Dispatchers.Main) {
+                            navController.navigate("photoDetails/${photoData.id}/$label")
+                        }
+                    }
                 }
             )
         }
@@ -341,7 +358,7 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun PhotoDetailsScreen(navController: NavController, photoId: String) {
+    fun PhotoDetailsScreen(navController: NavController, photoId: String, label: String) {
         val (id, title, latitude, longitude, originalBitmap) = viewModel.selectedPhoto
         var showMenu by remember { mutableStateOf(false) } // State to control menu visibility
         // State to control the visibility of the menu item.
@@ -438,7 +455,7 @@ class MainActivity : ComponentActivity() {
                             |Latitude: $latitude,
                             |Longitude: $longitude
                             |
-                            |Photo description:
+                            |Photo description: $label
                             |
                         """.trimMargin(),
                         modifier = Modifier.padding(16.dp),

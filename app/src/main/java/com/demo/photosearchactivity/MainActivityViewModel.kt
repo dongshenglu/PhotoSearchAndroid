@@ -17,6 +17,9 @@ import com.demo.photosearchactivity.model.PhotoData
 import com.demo.photosearchactivity.model.PhotoResponse
 import com.demo.photosearchactivity.model.SearchParameters
 import com.demo.photosearchactivity.usecase.FetchPhotoUseCase
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.label.ImageLabeling
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,10 +34,12 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
@@ -104,7 +109,7 @@ class MainActivityViewModel @Inject constructor(
                 // Launch parallel coroutines for each photo
                 photos.forEach { photo ->
                     launch {
-                        // Acquire a permit before fetching the photo
+                        // Acquire a permit before fetching the photo.
                         semaphore.withPermit {
                             val mapPhoto = fetchPhotoUseCase.fetchPhoto(photo)
                             mapPhoto?.let {
@@ -177,6 +182,41 @@ suspend fun Bitmap.convertToMonochrome(): Bitmap? = withContext(Dispatchers.Defa
     } catch (e: Exception) {
         Log.e(TAG, "Error converting to monochrome: ${e.message}")
         null
+    }
+}
+
+/**
+ * Get photo label with trained AI model.
+ */
+suspend fun Bitmap.getImageLabel(): String = withContext(Dispatchers.Default) {
+    try {
+        val image = InputImage.fromBitmap(this@getImageLabel, 0)
+        val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
+
+        // Create a CompletableFuture that will be completed when the labeling is done.
+        val future = CompletableFuture<String>()
+
+        labeler.process(image)
+            .addOnSuccessListener { labels ->
+                // Task completed successfully.
+                var confidenceMax = 0.0f
+                var bestLabel = ""
+                for (label in labels) {
+                    if (label.confidence > confidenceMax) {
+                        confidenceMax = label.confidence
+                        bestLabel = label.text
+                    }
+                }
+                future.complete(bestLabel)
+            }
+            .addOnFailureListener { _ -> future.complete("") }
+
+        // Await the future's completion, which effectively waits for the labeling task to complete.
+        return@withContext future.await()
+
+    } catch (e: Exception) {
+        Log.e(TAG, "Error in image labeling: ${e.message}")
+        ""
     }
 }
 

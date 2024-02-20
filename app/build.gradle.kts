@@ -74,6 +74,8 @@ dependencies {
 
     implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
 
+    implementation("com.google.mlkit:image-labeling:17.0.7")
+
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
