@@ -63,6 +63,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation ("androidx.fragment:fragment-ktx:1.3.6")
 
+    // Include coroutine libraries those are also included in others like "androidx.lifecycle:lifecycle-runtime-ktx" etc.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
+
     implementation ("androidx.navigation:navigation-compose:2.7.6")
 
 
