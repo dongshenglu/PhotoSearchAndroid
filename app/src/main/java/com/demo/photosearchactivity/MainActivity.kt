@@ -81,19 +81,27 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.demo.photosearchactivity.di.MainDispatcher
 import com.demo.photosearchactivity.model.PhotoData
 import com.demo.photosearchactivity.model.SearchParameters
 import com.demo.photosearchactivity.networking.WebClient
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.internal.wait
+import javax.inject.Inject
 
 private const val TAG = "PhotoSearch-MainActivity"
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var repository: PhotosRepository
+
+    @Inject
+    @MainDispatcher
+    lateinit var mainDispatcher: CoroutineDispatcher
 
     // Main activity view model for fetching photos.
     private val viewModel: MainActivityViewModel by viewModels()
@@ -157,6 +165,8 @@ class MainActivity : ComponentActivity() {
         Column(modifier = Modifier.padding(top = 8.dp)) {
             SearchToolbar()
 
+            // collectAsState is used to collect the values emitted by a StateFlow or Flow
+            // and convert them into a state that can be used within Jetpack Compose.
             // Collect photo fetching progress value and update indicator.
             val progress by viewModel.progressFlow.collectAsState(initial = 0f)
 
@@ -180,7 +190,7 @@ class MainActivity : ComponentActivity() {
                         val label = photoData.bitmap.getImageLabel()
 
                         // Ensure navigation is done on the main thread after label is obtained.
-                        withContext(Dispatchers.Main) {
+                        withContext(mainDispatcher) {
                             navController.navigate("photoDetails/${photoData.id}/$label")
                         }
                     }
@@ -192,8 +202,6 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun SearchToolbar() {
-        val context = LocalContext.current
-        val repository = PhotosRepository(context)
         var text by remember { mutableStateOf(viewModel.searchKeyword) }
         var isFocused by remember { mutableStateOf(false) }
 
@@ -206,7 +214,7 @@ class MainActivity : ComponentActivity() {
         // Common function for search operation
         fun performSearch() {
             focusManager.clearFocus()
-            viewModel.searchKeyword = text
+            viewModel.updateSearchQuery(text)
             viewModel.resetUiState()
             startNewSearch(text) // Assuming startNewSearch is your search function
         }
@@ -508,7 +516,7 @@ class MainActivity : ComponentActivity() {
      * @param keyWord: The search keyword input.
      */
     private fun startNewSearch(keyWord: String) {
-        viewModel.searchParameters.value = SearchParameters(keyWord, 0)
+        viewModel.setSearchParameters(SearchParameters(keyWord, 0))
         viewModel.clearFetchedPhotos()
         viewModel.loadNextPage()
     }
@@ -517,7 +525,6 @@ class MainActivity : ComponentActivity() {
     fun SaveImageDialog(bitmap: Bitmap, onDismiss: () -> Unit) {
         var fileName by remember { mutableStateOf("") }
         var showDialog by remember { mutableStateOf(true) }
-        val repository = PhotosRepository(LocalContext.current)
         val context = LocalContext.current
 
         if (showDialog) {

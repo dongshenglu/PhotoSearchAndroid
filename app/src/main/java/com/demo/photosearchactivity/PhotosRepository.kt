@@ -10,17 +10,20 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.util.LruCache
+import com.demo.photosearchactivity.di.DefaultDispatcher
+import com.demo.photosearchactivity.di.IoDispatcher
 import com.demo.photosearchactivity.model.LocationResponse
 import com.demo.photosearchactivity.model.PhotoResponse
 import com.demo.photosearchactivity.networking.WebClient
 import com.demo.photosearchactivity.networking.WebClient.imageRetrofit
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
+import javax.inject.Inject
 
 private const val TAG = "photoSearch-Repo"
 private const val DEFAULT_SIZE_SUFFIX: String = "b"
@@ -29,7 +32,11 @@ private const val PHOTO_BASE_URL = "https://live.staticflickr.com"
 /**
  * Repository class manages data operation from network and cache.
  */
-class PhotosRepository(private val context: Context) {
+class PhotosRepository @Inject constructor(
+    private val context: Context,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher
+) {
 
     // Maximum memory in KB.
     private val maxMemory = Runtime.getRuntime().maxMemory() / 1024
@@ -73,7 +80,7 @@ class PhotosRepository(private val context: Context) {
      *
      * @param photo PhoneResponse.
      */
-    suspend fun fetchImage(photo: PhotoResponse): Bitmap? = withContext(Dispatchers.IO) {
+    suspend fun fetchImage(photo: PhotoResponse): Bitmap? = withContext(ioDispatcher) {
         try {
             val url =
                 "$PHOTO_BASE_URL/${photo.server}/${photo.id}_${photo.secret}_$DEFAULT_SIZE_SUFFIX.jpg"
@@ -93,7 +100,7 @@ class PhotosRepository(private val context: Context) {
             response.body()?.use { responseBody ->
                 val bytes = responseBody.bytes()
 
-                withContext(Dispatchers.Default) {
+                withContext(defaultDispatcher) {
                     val options = BitmapFactory.Options().apply {
                         inPreferredConfig = Bitmap.Config.RGB_565
                     }
